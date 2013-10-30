@@ -1,12 +1,9 @@
 /*
- ** Author: Elina Lijouvni
+ ** Author: Elina Lijouvni, Eric McCann
  ** License: GPL v3
  */
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <stdint.h>
-
+#include "low-level-leap.h"
 #include <cv.h>
 #include <highgui.h>
 
@@ -15,26 +12,6 @@ struct ctx_s
 {
   int quit;
 };
-
-#if 0
-static void
-fprintf_data(FILE *fp, const char * title, unsigned char *data, size_t size)
-{
-  int i;
-
-  printf("%s", title);
-  for (i = 0; i < size; i++) {
-    if ( ! (i % 16) )
-      printf("\n");
-    printf("%02x ", data[i]);
-  }
-  printf("\n");
-}
-#endif
-
-#define VFRAME_WIDTH  640
-#define VFRAME_HEIGHT 240
-#define VFRAME_SIZE   (VFRAME_WIDTH * VFRAME_HEIGHT)
 
 typedef struct frame_s frame_t;
 struct frame_s
@@ -45,10 +22,12 @@ struct frame_s
   uint32_t state;
 };
 
-#define UVC_STREAM_EOF                                  (1 << 1)
+extern unsigned char* data;
+ctx_t ctx_data;
+ctx_t *ctx;
+frame_t frame;
 
-static void
-process_video_frame(ctx_t *ctx, frame_t *frame)
+static void process_video_frame(ctx_t *ctx, frame_t *frame)
 {
   int key;
 
@@ -58,8 +37,7 @@ process_video_frame(ctx_t *ctx, frame_t *frame)
     ctx->quit = 1;
 }
 
-static void
-process_usb_frame(ctx_t *ctx, frame_t *frame, unsigned char *data, int size)
+static void process_usb_frame(ctx_t *ctx, frame_t *frame, unsigned char *data, int size)
 {
   int i;
 
@@ -112,35 +90,23 @@ process_usb_frame(ctx_t *ctx, frame_t *frame, unsigned char *data, int size)
   }
 }
 
-
-int
-main(int argc, char *argv[])
+void gotData(int usb_frame_size)
 {
-  ctx_t ctx_data;
+  process_usb_frame(ctx, &frame, data, usb_frame_size);
+}
 
+int main(int argc, char *argv[])
+{
   memset(&ctx_data, 0, sizeof (ctx_data));
-
-  ctx_t *ctx = &ctx_data;
-
+  ctx = &ctx_data;
   cvNamedWindow("mainWin", 0);
   cvResizeWindow("mainWin", VFRAME_WIDTH, VFRAME_HEIGHT * 2);
-
-  frame_t frame;
   memset(&frame, 0, sizeof (frame));
   frame.frame = cvCreateImage( cvSize(VFRAME_WIDTH, 2 * VFRAME_HEIGHT), IPL_DEPTH_8U, 3);
 
-  for ( ; ; ) {
-    unsigned char data[16384];
-    int usb_frame_size;
-
-    if ( feof(stdin) || ctx->quit )
-      break ;
-
-    fread(&usb_frame_size, sizeof (usb_frame_size), 1, stdin);
-    fread(data, usb_frame_size, 1, stdin);
-
-    process_usb_frame(ctx, &frame, data, usb_frame_size);
-  }
+  init();
+  setDataCallback(&gotData);
+  spin();
 
   cvReleaseImage(&frame.frame);
 

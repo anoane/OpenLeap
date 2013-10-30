@@ -1,42 +1,82 @@
+CORES=$(shell grep -c ^processor /proc/cpuinfo)
+THREADS=$(shell expr 2 \* $(CORES))
+MAKEFLAGS=-j$(THREADS)
 
-LIBUSB_CFLAGS = $(shell pkg-config --cflags libusb-1.0)
-LIBUSB_LDFLAGS = $(shell pkg-config --libs libusb-1.0)
+CL_RED="\033[31m"
+CL_GRN="\033[32m"
+CL_YLW="\033[33m"
+CL_BLU="\033[34m"
+CL_MAG="\033[35m"
+CL_CYN="\033[36m"
+CL_RST="\033[0m"
 
-SDL_CFLAGS = $(shell pkg-config --cflags sdl)
-SDL_LDFLAGS = $(shell pkg-config --libs sdl)
+SHELL = /usr/bin/env bash
+UNAME := $(shell uname)
 
-OPENCV_CFLAGS = $(shell pkg-config --cflags opencv)
-OPENCV_LDFLAGS = $(shell pkg-config --libs opencv)
+SOURCESRAW=$(filter-out incomplete/%.cpp common/%.cpp classes/%.cpp,$(wildcard */*.cpp) $(wildcard *.cpp))
+COMMONRAW=$(wildcard common/*.cpp)
+CLASSESRAW=$(wildcard classes/*.cpp)
 
-CFLAGS = -O2 -Wall -DNDEBUG
-LDFLAGS =
+SOURCES=$(filter-out $(DIAF),$(SOURCESRAW))
+COMMON=$(filter-out $(DIAF),$(COMMONRAW))
+CLASSES=$(filter-out $(DIAF),$(CLASSESRAW))
 
-CC = gcc
+define get-target-name
+	@echo $(subst $(shell dirname $(1))/,,$(1))
+endef
 
-all: low-level-leap display-leap-data-sdl display-leap-data-opencv
+TARGETS = $(basename $(strip $(SOURCES)))
 
-clean:
-	rm -f low-level-leap low-level-leap.o
+OBJS = $(subst .cpp,.o,$(COMMON)) \
+       $(subst .cpp,.o,$(CLASSES)) \
 
-leap_libusb_init.c.inc:
-	@echo "Use make_leap_usbinit.sh to generate leap_libusb_init.c.inc."
+DIRT = $(wildcard */*.o */*.so */*.d *.i *~ */*~ *.log)
 
-low-level-leap.o: low-level-leap.c leap_libusb_init.c.inc
-	$(CC) -c $(CFLAGS) $(LIBUSB_CFLAGS) -o $@ $<
+CXXOPTS = -fmessage-length=0 -Wall -O3
 
-low-level-leap: low-level-leap.o
-	$(CC) -o $@ $< $(LDFLAGS) $(LIBUSB_LDFLAGS)
+CXXINCS = "-I$(CURDIR)/include" \
+          $(shell pkg-config --cflags sdl) \
+          $(shell pkg-config --cflags opencv) \
+          $(shell pkg-config --cflags libusb-1.0)
 
+LDLIBS = $(shell pkg-config --libs sdl) \
+         $(shell pkg-config --libs opencv) \
+         $(shell pkg-config --libs libusb-1.0) \
+         -lboost_thread-mt
 
-display-leap-data-sdl.o: display-leap-data-sdl.c
-	$(CC) -c $(CFLAGS) $(SDL_CFLAGS) -o $@ $<
+CXXFLAGS = $(CXXOPTS) $(CXXDEFS) $(CXXINCS)
+LDFLAGS = $(LDOPTS) $(LDDIRS) $(LDLIBS)
 
-display-leap-data-sdl: display-leap-data-sdl.o
-	$(CC) -o $@ $< $(LDFLAGS) $(SDL_LDFLAGS)
+.PHONY: Makefile
 
+default all: $(TARGETS)
 
-display-leap-data-opencv.o: display-leap-data-opencv.c
-	$(CC) -c $(CFLAGS) $(OPENCV_CFLAGS) -o $@ $<
+$(TARGETS): $(OBJS)
 
-display-leap-data-opencv: display-leap-data-opencv.o
-	$(CC) -o $@ $< $(LDFLAGS) $(OPENCV_LDFLAGS)
+%: %.cpp
+	@echo -e $(CL_GRN) BIN: $@$(CL_RST)
+	$(CXX) $(CXXFLAGS) $^ $(LDFLAGS) -o $@
+
+%.i: %.cpp
+	@echo $@
+	$(CXX) -E $(CXXFLAGS) $< | uniq > $@
+
+_clean:
+	@$(RM) $(DIRT)
+
+_rmtargets:
+	@$(RM) $(TARGETS)
+
+clean: _clean
+	@echo "Removed everything except compiled executables."
+
+rmtargets: _rmtargets
+	@echo "Removed executables."
+
+clobber: _clean _rmtargets
+	@echo "Removed objects and executables."
+
+.PHONY: fresh
+fresh:
+	$(MAKE) clobber
+	$(MAKE) all

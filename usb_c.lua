@@ -44,15 +44,14 @@ do
 
       function ctrl_out_tap.packet(pinfo,tvb)
 
-         local code_string = "  ret = libusb_control_transfer(ctx->dev_handle, "
+         local code_string = "  if ((ret = libusb_control_transfer(ctx->dev_handle, "
          code_string = code_string .. tostring( usb_bmRequestType() ) .. ", "
          code_string = code_string .. tostring( usb_setup_bRequest() ) .. ", "
          code_string = code_string .. tostring( usb_setup_wValue() ) .. ", "
          code_string = code_string .. tostring( usb_setup_wIndex() ) .. ", "
          code_string = code_string .. to_c_byte_array( usb_capdata() ) .. ", "
          code_string = code_string .. #usb_capdata() .. ", "
-         code_string = code_string .. "1000);"
-         code_string = code_string .. "\n  if (ret != " .. #usb_capdata() .. ") {\n    printf(\"strl out: ret == %i\\n\", ret);\n  }\n"
+         code_string = code_string .. "1000)) != " .. #usb_capdata() .. ") { printf(\"strl out: ret == %i\\n\", ret); }"
 
          print(code_string)
 
@@ -60,16 +59,15 @@ do
 
       function ctrl_in_tap.packet(pinfo,tvb)
 
-         local code_string = "  ret = libusb_control_transfer(ctx->dev_handle, "
+         local code_string = "  fprintf_data(stdout, \"ctrl in:\", data, " .. tostring( usb_setup_wLength() ) .. ");\n"
+         code_string = code_string .. "  if ((ret=libusb_control_transfer(ctx->dev_handle, "
          code_string = code_string .. tostring( usb_bmRequestType() ) .. ", "
          code_string = code_string .. tostring( usb_setup_bRequest() ) .. ", "
          code_string = code_string .. tostring( usb_setup_wValue() ) .. ", "
          code_string = code_string .. tostring( usb_setup_wIndex() ) .. ", "
          code_string = code_string .. "data, "
          code_string = code_string .. tostring( usb_setup_wLength() ) .. ", "
-         code_string = code_string .. "1000);"
-         code_string = code_string .. "\n  fprintf_data(stdout, \"ctrl in:\", data, " .. tostring( usb_setup_wLength() ) .. ");\n"
-         code_string = code_string .. "\n  if (ret != " .. tostring( usb_setup_wLength() ) .. ") {\n    printf(\"ctrl in: ret == %i\\n\", ret);\n  }\n"
+         code_string = code_string .. "1000)) != " .. tostring( usb_setup_wLength() ) .. "){ printf(\"ctrl in: ret == %i\\n\", ret); }"
 
          print(code_string)
 

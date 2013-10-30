@@ -1,12 +1,8 @@
 /*
- ** Author: Elina Lijouvni
+ ** Author: Elina Lijouvni, Eric McCann
  ** License: GPL v3
  */
-
-#include <stdlib.h>
-#include <stdio.h>
-#include <stdint.h>
-
+#include "low-level-leap.h"
 #include <SDL.h>
 
 typedef struct ctx_s ctx_t;
@@ -14,6 +10,21 @@ struct ctx_s
 {
   SDL_Surface *screen;
 };
+
+typedef struct frame_s frame_t;
+struct frame_s
+{
+  unsigned char left[ VFRAME_SIZE ];
+  unsigned char right[ VFRAME_SIZE ];
+  uint32_t id;
+  uint32_t data_len;
+  uint32_t state;
+};
+
+extern unsigned char* data;
+ctx_t ctx_data;
+ctx_t *ctx;
+frame_t frame;
 
 void SDL_drawpixel(SDL_Surface *screen, int x, int y, Uint8 R, Uint8 G, Uint8 B)
 {
@@ -97,49 +108,17 @@ void SDL_addpixel(SDL_Surface *screen, int x, int y, Uint8 R, Uint8 G, Uint8 B)
   }
 }
 
-#if 0
-static void
-fprintf_data(FILE *fp, const char * title, unsigned char *data, size_t size)
-{
-  int i;
-
-  printf("%s", title);
-  for (i = 0; i < size; i++) {
-    if ( ! (i % 16) )
-      printf("\n");
-    printf("%02x ", data[i]);
-  }
-  printf("\n");
-}
-#endif
-
-#define VFRAME_WIDTH  640
-#define VFRAME_HEIGHT 240
-#define VFRAME_SIZE   (VFRAME_WIDTH * VFRAME_HEIGHT)
-
-typedef struct frame_s frame_t;
-struct frame_s
-{
-  unsigned char left[ VFRAME_SIZE ];
-  unsigned char right[ VFRAME_SIZE ];
-  uint32_t id;
-  uint32_t data_len;
-  uint32_t state;
-};
-
-#define UVC_STREAM_EOF                                  (1 << 1)
-
 static void
 process_video_frame(ctx_t *ctx, frame_t *frame)
 {
   int x, y;
   SDL_Surface *screen = ctx->screen;
 
-  /* if ( SDL_MUSTLOCK(screen) ) { */
-  /*   if ( SDL_LockSurface(screen) < 0 ) { */
-  /*     return; */
-  /*   } */
-  /* } */
+  if ( SDL_MUSTLOCK(screen) ) {
+    if ( SDL_LockSurface(screen) < 0 ) {
+      return;
+    }
+  }
 
   for (y = 0; y < (VFRAME_HEIGHT * 2); y++) {
     for (x = 0; x < VFRAME_WIDTH; x++) {
@@ -148,9 +127,9 @@ process_video_frame(ctx_t *ctx, frame_t *frame)
     }
   }
 
-  /* if ( SDL_MUSTLOCK(screen) ) { */
-  /*   SDL_UnlockSurface(screen); */
-  /* } */
+  if ( SDL_MUSTLOCK(screen) ) {
+    SDL_UnlockSurface(screen);
+  }
   SDL_UpdateRect(screen, 0, 0, 640, 480);
 }
 
@@ -201,15 +180,16 @@ process_usb_frame(ctx_t *ctx, frame_t *frame, unsigned char *data, int size)
   }
 }
 
+void gotData(int usb_frame_size)
+{
+  process_usb_frame(ctx, &frame, data, usb_frame_size);
+}
 
 int
 main(int argc, char *argv[])
 {
-  ctx_t ctx_data;
-
   memset(&ctx_data, 0, sizeof (ctx_data));
-
-  ctx_t *ctx = &ctx_data;
+  ctx = &ctx_data;
 
   if ( SDL_Init(SDL_INIT_VIDEO) < 0 ) {
     fprintf(stderr, "Unable to init SDL: %s\n", SDL_GetError());
@@ -223,21 +203,9 @@ main(int argc, char *argv[])
     exit(EXIT_FAILURE);
   }
 
-  frame_t frame;
-  memset(&frame, 0, sizeof (frame));
-
-  for ( ; ; ) {
-    unsigned char data[16384];
-    int usb_frame_size;
-
-    if ( feof(stdin) )
-      break ;
-
-    fread(&usb_frame_size, sizeof (usb_frame_size), 1, stdin);
-    fread(data, usb_frame_size, 1, stdin);
-
-    process_usb_frame(ctx, &frame, data, usb_frame_size);
-  }
+  init();
+  setDataCallback(&gotData);
+  spin();
 
   return (0);
 }

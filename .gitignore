@@ -1,6 +1,3 @@
 display-leap-data-opencv
 display-leap-data-sdl
-display-leap-data-opencv.o
-display-leap-data-sdl.o
-low-level-leap.o
-low-level-leap
+*.o
