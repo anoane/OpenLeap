@@ -6,9 +6,8 @@ struct _ctx_s
   libusb_context       *libusb_ctx;
   libusb_device_handle *dev_handle;
 };
-boost::function<void(int)> dataCallback;
-unsigned char* data = NULL;
-int position = 0;
+boost::function<void(unsigned char*, int)> dataCallback;
+unsigned char data[16384];
 _ctx_t _ctx_data;
 _ctx_t *_ctx;
 
@@ -31,33 +30,30 @@ leap_init(_ctx_t *ctx)
 {
   int ret;
 
-  data = (unsigned char *)malloc(256);
 #include "leap_libusb_init.c.inc"
-  free(data);
 }
 
-void setDataCallback(boost::function<void(int)> dc)
+void setDataCallback(boost::function<void(unsigned char*,int)> dc)
 {
   dataCallback = dc;
 }
 
 void spin()
 {
-  data = (unsigned char *)malloc(16834);
   int transferred,ret;
   for ( ; ; ) {
     ret = libusb_bulk_transfer(_ctx->dev_handle, 0x83, data, sizeof(data), &transferred, 1000);
     if (ret != 0) {
       printf("libusb_bulk_transfer(): %i: %s\n", ret, libusb_error_name(ret));
-      exit(EXIT_FAILURE);
+      continue;
     }
-    printf("libusb_bulk_transfer(): %i\n", ret);
+    //printf("libusb_bulk_transfer(): %i\n", ret);
 
-    debug_printf("read usb frame of %i bytes\n", transferred);
+    //printf("%i ", transferred);
 
-    dataCallback(transferred);
+    //if (transferred == 16380)
+      dataCallback(data, transferred);
   }
-  free(data);
   libusb_exit(_ctx->libusb_ctx);
 }
 

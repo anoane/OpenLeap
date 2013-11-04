@@ -22,7 +22,6 @@ struct frame_s
   uint32_t state;
 };
 
-extern unsigned char* data;
 ctx_t ctx_data;
 ctx_t *ctx;
 frame_t frame;
@@ -90,7 +89,7 @@ static void process_usb_frame(ctx_t *ctx, frame_t *frame, unsigned char *data, i
   }
 }
 
-void gotData(int usb_frame_size)
+void gotData(unsigned char* data, int usb_frame_size)
 {
   process_usb_frame(ctx, &frame, data, usb_frame_size);
 }

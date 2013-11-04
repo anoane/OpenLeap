@@ -38,7 +38,7 @@
 
 #define UVC_STREAM_EOF                                  (1 << 1)
 
-void setDataCallback(boost::function<void(int)>);
+void setDataCallback(boost::function<void(unsigned char*, int)>);
 void init();
 void spin();
 #endif

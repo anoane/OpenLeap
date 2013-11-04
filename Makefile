@@ -35,14 +35,14 @@ DIRT = $(wildcard */*.o */*.so */*.d *.i *~ */*~ *.log)
 CXXOPTS = -fmessage-length=0 -Wall -O3
 
 CXXINCS = "-I$(CURDIR)/include" \
-          $(shell pkg-config --cflags sdl) \
           $(shell pkg-config --cflags opencv) \
           $(shell pkg-config --cflags libusb-1.0)
+#$(shell pkg-config --cflags sdl) \
 
-LDLIBS = $(shell pkg-config --libs sdl) \
-         $(shell pkg-config --libs opencv) \
+LDLIBS = $(shell pkg-config --libs opencv) \
          $(shell pkg-config --libs libusb-1.0) \
          -lboost_thread-mt
+#$(shell pkg-config --libs sdl) \
 
 CXXFLAGS = $(CXXOPTS) $(CXXDEFS) $(CXXINCS)
 LDFLAGS = $(LDOPTS) $(LDDIRS) $(LDLIBS)
