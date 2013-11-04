@@ -1,12 +1,9 @@
 /*
- ** Author: Elina Lijouvni
+ ** Author: Elina Lijouvni, Eric McCann
  ** License: GPL v3
  */
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <stdint.h>
-
+#include "low-level-leap.h"
 #include <cv.h>
 #include <highgui.h>
 
@@ -16,20 +13,14 @@ struct ctx_s
   int quit;
 };
 
-
-#define VFRAME_WIDTH  640
-#define VFRAME_HEIGHT 240
-#define VFRAME_SIZE   (VFRAME_WIDTH * VFRAME_HEIGHT)
-
 typedef struct frame_s frame_t;
 struct frame_s
 {
-
+  IplImage* frame;
   uint32_t id;
   uint32_t data_len;
   uint32_t state;
 };
-
 
 typedef struct stereoframe_s stereoframe_t; 
 struct stereoframe_s{
@@ -41,8 +32,10 @@ struct stereoframe_s{
 
 };
 
-#define UVC_STREAM_EOF                                  (1 << 1)
-
+ctx_t ctx_data;
+ctx_t *ctx;
+frame_t frame;  
+stereoframe_t stereo; 
 
 /* Function to compute StereoBM and update the result on the window */
 static void computeStereoBM ( stereoframe_t *data )
@@ -208,38 +201,26 @@ void init_stereo_frame(stereoframe_t *frame){
 }
 
 
-int
-main(int argc, char *argv[])
+void gotData(unsigned char *data, int usb_frame_size)
 {
-  ctx_t ctx_data;
+  process_usb_frame(ctx, &stereo, &frame, data, usb_frame_size);
+}
 
+int main(int argc, char *argv[])
+{
   memset(&ctx_data, 0, sizeof (ctx_data));
-
-  ctx_t *ctx = &ctx_data;
-
+  ctx = &ctx_data;
   cvNamedWindow(WINDOWNAME, 0);
   cvResizeWindow(WINDOWNAME, VFRAME_WIDTH, VFRAME_HEIGHT * 2);
-
-  frame_t frame;
   memset(&frame, 0, sizeof (frame));
-
-
-  stereoframe_t stereo; 
 
   init_stereo_frame(&stereo);
 
-  for ( ; ; ) {
-    unsigned char data[16384];
-    int usb_frame_size;
+  init();
+  setDataCallback(&gotData);
+  spin();
 
-    if ( feof(stdin) || ctx->quit )
-      break ;
-
-    fread(&usb_frame_size, sizeof (usb_frame_size), 1, stdin);
-    fread(data, usb_frame_size, 1, stdin);
-
-    process_usb_frame(ctx,&stereo, &frame, data, usb_frame_size);
-  }
+  cvReleaseImage(&frame.frame);
 
   return (0);
 }
