@@ -1,7 +1,3 @@
-CORES=$(shell grep -c ^processor /proc/cpuinfo)
-THREADS=$(shell expr 2 \* $(CORES))
-MAKEFLAGS=-j$(THREADS)
-
 CL_RED="\033[31m"
 CL_GRN="\033[32m"
 CL_YLW="\033[33m"
@@ -27,8 +23,8 @@ endef
 
 TARGETS = $(basename $(strip $(SOURCES)))
 
-OBJS = $(subst .cpp,.o,$(COMMON)) \
-       $(subst .cpp,.o,$(CLASSES)) \
+OBJS =  $(subst .cpp,.o,$(COMMON)) \
+				$(subst .cpp,.o,$(CLASSES)) \
 
 DIRT = $(wildcard */*.o */*.so */*.d *.i *~ */*~ *.log)
 
@@ -37,19 +33,37 @@ CXXOPTS = -fmessage-length=0 -Wall -O3
 CXXINCS = "-I$(CURDIR)/include" \
           $(shell pkg-config --cflags opencv) \
           $(shell pkg-config --cflags libusb-1.0)
-#$(shell pkg-config --cflags sdl) \
 
 LDLIBS = $(shell pkg-config --libs opencv) \
          $(shell pkg-config --libs libusb-1.0) \
          -lboost_thread-mt
-#$(shell pkg-config --libs sdl) \
 
 CXXFLAGS = $(CXXOPTS) $(CXXDEFS) $(CXXINCS)
 LDFLAGS = $(LDOPTS) $(LDDIRS) $(LDLIBS)
 
+RAWBUS=$(shell lsusb -d f182:0003 | cut -d ' ' -f 2)
+RAWDEVICE=$(shell lsusb -d f182:0003 | cut -d ' ' -f 4 | sed 's/:*//g')
+BUS=$(shell echo $(RAWBUS) | sed 's/^0*//')
+DEVICE=$(shell echo $(RAWDEVICE) | sed 's/^0*//')
+file=$(shell mktemp)
+tempcap=/tmp/tmp.pcap
+
 .PHONY: Makefile
 
-default all: $(TARGETS)
+default all: common/leap_libusb_init.c.inc
+	$(MAKE) $(TARGETS)
+
+common/leap_init.pcap:
+	lsmod | grep usbmon || echo Requesting root permissions to modprobe usbmon && sudo modprobe usbmon
+	leapd &
+	sudo tshark -i usbmon${BUS} -w $(tempcap) &
+	sleep 10
+	sudo killall leapd tshark
+	sudo chown $(shell whoami).$(shell whoami) $(tempcap)
+	mv $(tempcap) common/leap_init.pcap
+
+common/leap_libusb_init.c.inc: common/leap_init.pcap
+	common/make_leap_usbinit.sh $(RAWDEVICE) common/leap_init.pcap > common/leap_libusb_init.c.inc
 
 $(TARGETS): $(OBJS)
 
@@ -66,6 +80,7 @@ _clean:
 
 _rmtargets:
 	@$(RM) $(TARGETS)
+	@$(RM) common/leap_init.pcap common/leap_libusb_init.c.inc
 
 clean: _clean
 	@echo "Removed everything except compiled executables."
