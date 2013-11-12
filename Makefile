@@ -47,23 +47,22 @@ BUS=$(shell echo $(RAWBUS) | sed 's/^0*//')
 DEVICE=$(shell echo $(RAWDEVICE) | sed 's/^0*//')
 file=$(shell mktemp)
 tempcap=/tmp/tmp.pcap
+TIMETOCAP=5
 
 .PHONY: Makefile
 
 default all: common/leap_libusb_init.c.inc
 	$(MAKE) $(TARGETS)
-
+	
 common/leap_init.pcap:
-	lsmod | grep usbmon || echo Requesting root permissions to modprobe usbmon && sudo modprobe usbmon
-	leapd &
-	sudo tshark -i usbmon${BUS} -w $(tempcap) &
-	sleep 10
-	sudo killall leapd tshark
-	sudo chown $(shell whoami).$(shell whoami) $(tempcap)
-	mv $(tempcap) common/leap_init.pcap
+	@lsmod | grep usbmon || echo Requesting root permissions to modprobe usbmon && sudo modprobe usbmon
+	@sudo common/startcapping.sh $(RAWBUS) $(tempcap) $(TIMETOCAP)
+	@sudo chown $(shell whoami).$(shell whoami) $(tempcap)
+	@mv $(tempcap) common/leap_init.pcap
 
 common/leap_libusb_init.c.inc: common/leap_init.pcap
-	common/make_leap_usbinit.sh $(RAWDEVICE) common/leap_init.pcap > common/leap_libusb_init.c.inc
+	echo $(DEVICE) $(RAWDEVICE) $(BUS) $(RAWBUS)
+	common/make_leap_usbinit.sh $(DEVICE) common/leap_init.pcap | tee common/leap_libusb_init.c.inc
 
 $(TARGETS): $(OBJS)
 
