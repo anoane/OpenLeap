@@ -1,0 +1,5 @@
+1. sudo apt-get install tshark
+2. Install Leap Linux software (the SDK is optional, but we need the .deb files that include leapd, etc.) (https://developer.leapmotion.com/downloads/installer-preview)
+        (after downloading, sudo dpkg -i (WHICHEVER DEB IS APPROPRIATE FOR YOUR ARCH)
+3. Run "make"
+4. Profit
