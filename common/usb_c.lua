@@ -4,6 +4,7 @@
 do
 
    local DEVICE_ADDRESS = os.getenv("LEAP_DEV_ADDR")
+   local FILTER = os.getenv("LEAP_FILTER")
 
    local function split(str, pat)
       local t = {}
@@ -30,9 +31,9 @@ do
 
    local function init_listener()
 
-      local ctrl_out_tap = Listener.new("usb", "usb.device_address == " .. DEVICE_ADDRESS .. " and usb.transfer_type == 0x02 and usb.endpoint_number.direction == 0 and usb.setup.bRequest == 1")
+      local ctrl_out_tap = Listener.new("usb", "" .. FILTER .. " and usb.endpoint_number.direction == 0 and usb.setup.bRequest == 1")
 
-      local ctrl_in_tap = Listener.new("usb", "usb.device_address == " .. DEVICE_ADDRESS .. " and usb.transfer_type == 0x02 and usb.endpoint_number.direction == 1 and usb.setup.bRequest == 129")
+      local ctrl_in_tap = Listener.new("usb", "" .. FILTER .. " and usb.transfer_type == 0x02 and usb.endpoint_number.direction == 1 and usb.setup.bRequest == 129")
 
       local usb_bmRequestType  = Field.new("usb.bmRequestType")
       local usb_setup_bRequest = Field.new("usb.setup.bRequest")
