@@ -62,7 +62,7 @@ common/leap_init.pcap:
 
 common/leap_libusb_init.c.inc: common/leap_init.pcap
 	echo $(DEVICE) $(RAWDEVICE) $(BUS) $(RAWBUS)
-	common/make_leap_usbinit.sh $(DEVICE) common/leap_init.pcap | tee common/leap_libusb_init.c.inc
+	common/make_leap_usbinit.sh common/leap_init.pcap common/leap_libusb_init.c.inc $(DEVICE) $(RAWDEVICE)
 
 $(TARGETS): $(OBJS)
 
