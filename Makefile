@@ -78,18 +78,20 @@ _clean:
 
 _rmtargets:
 	@$(RM) $(TARGETS)
+
+_rmlibusbfiles:
 	@$(RM) common/leap_init.pcap common/leap_libusb_init.c.inc
 
-clean: _clean
+clean: _clean _rmtargets
 	@echo "Removed everything except compiled executables."
 
 rmtargets: _rmtargets
 	@echo "Removed executables."
 
-clobber: _clean _rmtargets
+clobber: _clean _rmtargets _rmlibusbfiles
 	@echo "Removed objects and executables."
 
 .PHONY: fresh
 fresh:
-	$(MAKE) clobber
+	$(MAKE) clean
 	$(MAKE) all
